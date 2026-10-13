@@ -1,12 +1,12 @@
+import hashlib
+import json
 import os
 import sys
-import json
-import hashlib
 
 BASELINE_FILE = "checksums.json"
 
+
 def calculate_hash(file_path):
-    """Nagcha-calculate ng SHA-256 hash ng isang file."""
     sha256 = hashlib.sha256()
     try:
         with open(file_path, "rb") as f:
@@ -14,31 +14,30 @@ def calculate_hash(file_path):
                 sha256.update(chunk)
         return sha256.hexdigest()
     except Exception as e:
-        print(f"Error sa pagbasa ng file {file_path}: {e}")
+        print(f"Error reading file {file_path}: {e}")
         return None
 
+
 def get_target_files(path):
-    """Nagbabalik ng listahan ng mga file mula sa file path o directory."""
     files_to_check = []
     if os.path.isfile(path):
         files_to_check.append(os.path.abspath(path))
     elif os.path.isdir(path):
         for root, _, filenames in os.walk(path):
             for filename in filenames:
-                # I-ignore ang baseline file kung nasa parehong folder
                 if filename == BASELINE_FILE:
                     continue
                 files_to_check.append(os.path.abspath(os.path.join(root, filename)))
     else:
-        print(f"Error: Ang path '{path}' ay hindi mahanap.")
+        print(f"Error: Path '{path}' not found.")
         sys.exit(1)
     return files_to_check
 
+
 def init_baseline(path):
-    """Ino-initialize at isino-store ang hashes sa baseline JSON file."""
     files = get_target_files(path)
     hashes = {}
-    
+
     for file_path in files:
         file_hash = calculate_hash(file_path)
         if file_hash:
@@ -47,12 +46,12 @@ def init_baseline(path):
     with open(BASELINE_FILE, "w") as f:
         json.dump(hashes, f, indent=4)
 
-    print(f"✅ Successful initialization! Naitabi ang hashes ng {len(hashes)} file(s) sa '{BASELINE_FILE}'.")
+    print(f"Initialized baseline for {len(hashes)} file(s) in '{BASELINE_FILE}'.")
+
 
 def check_integrity(path):
-    """Inikokompara ang kasalukuyang hashes laban sa naisagip na baseline."""
     if not os.path.exists(BASELINE_FILE):
-        print(f"⚠️ Walang nahanap na '{BASELINE_FILE}'. Patakbuhin muna ang 'init' command.")
+        print(f"Error: '{BASELINE_FILE}' not found. Run 'init' first.")
         return
 
     with open(BASELINE_FILE, "r") as f:
@@ -60,7 +59,7 @@ def check_integrity(path):
 
     current_files = get_target_files(path)
     current_hashes = {}
-    
+
     for file_path in current_files:
         file_hash = calculate_hash(file_path)
         if file_hash:
@@ -69,33 +68,33 @@ def check_integrity(path):
     print("\n--- Integrity Check Report ---")
     discrepancies = False
 
-    # Check para sa modified at unchanged files
     for file_path, stored_hash in stored_hashes.items():
         if file_path in current_hashes:
             if current_hashes[file_path] == stored_hash:
-                print(f"[OK] Walang bago: {file_path}")
+                print(f"[OK] {file_path}")
             else:
-                print(f"[MODIFIED ⚠️] Binago ang file: {file_path}")
+                print(f"[MODIFIED] {file_path}")
                 discrepancies = True
         else:
-            print(f"[DELETED ❌] Nawawala ang file: {file_path}")
+            print(f"[DELETED] {file_path}")
             discrepancies = True
 
-    # Check para sa mga bagong idinagdag na files
     for file_path in current_hashes:
         if file_path not in stored_hashes:
-            print(f"[NEW 🆕] Bagong idinagdag: {file_path}")
+            print(f"[NEW] {file_path}")
             discrepancies = True
 
     if not discrepancies:
-        print("\n✅ Walang anumang pagbabago sa mga files!")
+        print("\nAll files are intact.")
     else:
-        print("\n⚠️ May natagpuang pagbabago/tampering sa mga files!")
+        print("\nWarnings detected: File modifications or missing files found.")
+
 
 def print_usage():
-    print("Gamit:")
+    print("Usage:")
     print("  python integrity_checker.py init <file_or_directory_path>")
     print("  python integrity_checker.py check <file_or_directory_path>")
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 3:
@@ -110,5 +109,4 @@ if __name__ == "__main__":
     elif command == "check":
         check_integrity(target_path)
     else:
-
         print_usage()
